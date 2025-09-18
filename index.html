@@ -3,16 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenAI Chat Example</title>
+    <title>AI Chat Assistant</title>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="script.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <script src="page.js" defer></script>
 </head>
 
 <body>
-    <h1>OpenAI Chat Example</h1>
-    <div id="chat"></div>
-    <input type="text" id="input" placeholder="Type your message here..." />
-    <button id="send">Send</button>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🤖 AI Chat Assistant</h1>
+            <div class="header-actions">
+                <button id="theme-toggle" class="icon-btn" title="Toggle Theme">🌙</button>
+                <button id="settings-toggle" class="icon-btn" title="Settings">⚙️</button>
+            </div>
+        </header>
+
+        <!-- API Key Section -->
+        <div id="api-key-section" class="auth-container">
+            <div class="auth-card">
+                <h2>Welcome! Let's get started</h2>
+                <p>Enter your OpenAI API key to begin chatting</p>
+                <div class="input-group">
+                    <input type="password" id="api-key-input" placeholder="sk-..." />
+                    <button id="show-key" class="show-btn">👁️</button>
+                </div>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="save-key-checkbox">
+                    <span>Save API key for next time (stored locally)</span>
+                </label>
+                <button id="api-key-submit" class="primary-btn">Start Chatting</button>
+                <p class="hint">Your API key is never sent anywhere except OpenAI</p>
+            </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settings-panel" class="settings-panel">
+            <h3>Settings</h3>
+            <div class="setting-item">
+                <label for="model-select">Model:</label>
+                <select id="model-select">
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    <option value="gpt-4">GPT-4</option>
+                    <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="max-tokens">Max Tokens: <span id="tokens-value">500</span></label>
+                <input type="range" id="max-tokens" min="50" max="2000" value="500" step="50">
+            </div>
+            <div class="setting-item">
+                <label for="temperature">Temperature: <span id="temp-value">0.7</span></label>
+                <input type="range" id="temperature" min="0" max="2" value="0.7" step="0.1">
+            </div>
+            <div class="setting-item">
+                <label for="system-prompt">System Prompt:</label>
+                <textarea id="system-prompt" rows="3">You are a helpful assistant.</textarea>
+            </div>
+
+            <h4 style="margin: 2rem 0 1rem 0; color: var(--text-primary);">Voice Settings</h4>
+
+            <div class="setting-item">
+                <label for="voice-enabled">
+                    <input type="checkbox" id="voice-enabled" checked> Enable Voice Features
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label for="auto-speak">
+                    <input type="checkbox" id="auto-speak" checked> Auto-speak AI responses
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label for="voice-rate">Speech Rate: <span id="voice-rate-value">1.0</span></label>
+                <input type="range" id="voice-rate" min="0.5" max="2" value="1" step="0.1">
+            </div>
+
+            <div class="setting-item">
+                <label for="voice-pitch">Speech Pitch: <span id="voice-pitch-value">1.0</span></label>
+                <input type="range" id="voice-pitch" min="0.5" max="2" value="1" step="0.1">
+            </div>
+
+            <div class="setting-item">
+                <label for="listening-mode">Listening Mode:</label>
+                <select id="listening-mode">
+                    <option value="click">Click to Talk</option>
+                    <option value="continuous">Continuous Listening</option>
+                </select>
+            </div>
+
+            <button id="clear-storage" class="danger-btn">Clear All Data</button>
+        </div>
+
+        <!-- Chat Section -->
+        <div id="chat-section" style="display: none;">
+            <div class="chat-container">
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div class="chat-info">
+                        <span id="chat-status">Ready</span>
+                        <span id="model-info">GPT-4o Mini</span>
+                    </div>
+                    <div class="chat-actions">
+                        <button id="export-chat" class="icon-btn" title="Export Chat">📥</button>
+                        <button id="clear-chat" class="icon-btn" title="Clear Chat">🗑️</button>
+                        <button id="new-chat" class="icon-btn" title="New Chat">➕</button>
+                    </div>
+                </div>
+
+                <!-- Messages Area -->
+                <div id="chat-messages" class="chat-messages">
+                    <div class="welcome-message">
+                        <h3>👋 Hello! I'm your AI assistant</h3>
+                        <p>Here are some things you can ask me:</p>
+                        <div class="example-prompts">
+                            <button class="prompt-chip">Explain quantum computing simply</button>
+                            <button class="prompt-chip">Write a Python function to sort a list</button>
+                            <button class="prompt-chip">What are the benefits of meditation?</button>
+                            <button class="prompt-chip">Help me debug my code</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Typing Indicator -->
+                <div id="typing-indicator" class="typing-indicator" style="display: none;">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea id="message-input"
+                                  placeholder="Type your message... (Shift+Enter for new line)"
+                                  rows="1"></textarea>
+                        <div class="input-actions">
+                            <span id="char-counter">0</span>
+                            <button id="voice-input" class="voice-btn" title="Click to start voice input">🎤</button>
+                            <button id="stop-listening" class="voice-btn" title="Stop listening" style="display: none;">🛑</button>
+                            <button id="stop-speaking" class="voice-btn" title="Stop speaking" style="display: none;">🔇</button>
+                            <button id="send-message" class="send-btn" disabled>
+                                <span class="send-icon">➤</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="input-hints">
+                        <span>Shift+Enter for new line • Enter to send • <span id="voice-status">🎤 Click mic for voice input</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversation Tabs -->
+            <div class="conversation-tabs">
+                <div class="tabs-header">
+                    <h4>Conversations</h4>
+                </div>
+                <div id="conversation-list" class="conversation-list">
+                    <div class="conversation-item active" data-id="default">
+                        <span class="conv-title">Chat 1</span>
+                        <span class="conv-time">Now</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
 </body>
 </html>
